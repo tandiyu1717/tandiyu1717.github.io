@@ -1,0 +1,43 @@
+{
+  "name": "小生活工作台",
+  "short_name": "小生活",
+  "description": "蛋堡早教、辅食计划、德语学习、减肥计划，一站式每日打卡",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f3e9",
+  "theme_color": "#6b9976",
+  "lang": "zh-CN",
+  "scope": "/",
+  "categories": ["productivity", "lifestyle", "education", "health"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "每日计划",
+      "short_name": "每日计划",
+      "description": "查看今日时间轴和打卡",
+      "url": "/?p=daily",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "蛋堡早教",
+      "short_name": "早教计划",
+      "description": "查看蛋堡的早教安排",
+      "url": "/?p=egg",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}
