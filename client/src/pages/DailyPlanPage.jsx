@@ -8,12 +8,11 @@ const CATEGORIES = {
   weight: { label: '减肥计划', icon: '💪', cls: 'weight' },
 };
 
-// 整合四项的每日时间轴任务
+// 整合四项的每日时间轴任务（已去掉母乳喂养相关项）
 const DAILY_TASKS = [
   // 早晨
   { id: 't01', time: '06:00', period: 'morning', cat: 'egg',    title: '蛋堡起床 + 补充维生素 D3', note: '今天轮到 D3，明天 AD' },
   { id: 't02', time: '06:30', period: 'morning', cat: 'weight', title: '晨起空腹上阿福体脂秤测量', note: '排便后测量最准确' },
-  { id: 't03', time: '07:00', period: 'morning', cat: 'food',   title: '蛋堡母乳喂养', note: '按需喂养' },
   { id: 't04', time: '07:30', period: 'morning', cat: 'weight', title: '喝水 500ml + 营养早餐', note: '全麦面包+鸡蛋+牛奶' },
   { id: 't05', time: '08:00', period: 'morning', cat: 'egg',    title: '蛋堡趴卧练习 10 分钟', note: '锻炼颈背力量，为爬行打基础' },
   { id: 't06', time: '09:00', period: 'morning', cat: 'german', title: '德语背 20 个 A1 单词', note: '用 Memrise 或德语助手' },
@@ -34,7 +33,6 @@ const DAILY_TASKS = [
   { id: 't18', time: '18:00', period: 'evening', cat: 'food',   title: '蛋堡洗澡 + 补充碳酸钙', note: '晚上六点左右补钙' },
   { id: 't19', time: '18:30', period: 'evening', cat: 'weight', title: '晚餐清淡（少主食）', note: '蛋白质+大量绿叶蔬菜' },
   { id: 't20', time: '19:00', period: 'evening', cat: 'egg',    title: '蛋堡手膝爬训练 30 分钟', note: '大动作重点！推脚辅助' },
-  { id: 't21', time: '20:00', period: 'evening', cat: 'food',   title: '蛋堡睡前奶（母乳）', note: '睡前充足喂养' },
   { id: 't22', time: '20:30', period: 'evening', cat: 'egg',    title: '蛋堡入睡 + 睡前绘本', note: '建立睡眠仪式' },
   { id: 't23', time: '21:00', period: 'evening', cat: 'weight', title: '饭后散步 40 分钟', note: '不喝奶茶，不吃零食' },
   { id: 't24', time: '22:00', period: 'evening', cat: 'german', title: '德语整理本周错题', note: '复习巩固' },
@@ -48,62 +46,74 @@ const PERIODS = [
   { key: 'evening',   label: '🌙 晚上', range: '18:00 - 23:00' },
 ];
 
-const STORAGE_KEY = 'daily_plan_checkin';
-const MONTH_KEY = 'daily_plan_month';
-
-// 生成当月日历的模拟历史数据（过去几天有完成率，未来为空）
-function genMonthData(year, month, todayDate) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const data = {};
-  for (let d = 1; d <= daysInMonth; d++) {
-    if (d < todayDate) {
-      // 已过去：模拟完成率（80% 概率有打卡）
-      const hasData = Math.random() > 0.2;
-      data[d] = hasData ? Math.round(50 + Math.random() * 50) : 0;
-    } else if (d === todayDate) {
-      data[d] = null; // 今天，动态计算
-    } else {
-      data[d] = null; // 未来
-    }
-  }
-  return data;
-}
+// 打卡数据结构：{ taskId: { done: true, time: '14:32' } }
+const STORAGE_KEY = 'daily_plan_checkin_v2';
+const MONTH_KEY = 'daily_plan_month_v2';
 
 export default function DailyPlanPage() {
   const today = new Date();
   const todayDate = today.getDate();
   const year = today.getFullYear();
-  const month = today.getMonth(); // 0-11
+  const month = today.getMonth();
   const monthLabel = `${year}年${month + 1}月`;
 
   const [activeTab, setActiveTab] = useState('timeline');
+
+  const todayStr = today.toISOString().slice(0, 10); // 如 "2026-07-27"
+
+  // 打卡记录：{ taskId: { done, time } } —— 按日期自动重置，新的一天从0开始
   const [done, setDone] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : {};
+      if (!saved) return {};
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.date === todayStr) return parsed.done || {};
+      return {}; // 日期不一致，重置为未打卡
     } catch {
       return {};
     }
   });
+
+  // 月度数据：{ day: rate }，从0开始（不生成模拟历史数据）
   const [monthData, setMonthData] = useState(() => {
     try {
       const saved = localStorage.getItem(MONTH_KEY);
       const parsed = saved ? JSON.parse(saved) : null;
       if (parsed && parsed.month === month) return parsed.data;
-      return genMonthData(year, month, todayDate);
+      return {};
     } catch {
-      return genMonthData(year, month, todayDate);
+      return {};
     }
   });
 
-  // 持久化打卡状态
+  // 持久化打卡状态（带上日期标记，跨天自动重置）
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(done)); } catch {}
-  }, [done]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: todayStr, done }));
+    } catch {}
+  }, [done, todayStr]);
 
-  // 持久化月度数据，并把今日完成率同步进去
+  // 页面从后台切回前台时，检查是否跨天了，跨天则自动重置打卡
   useEffect(() => {
-    const todayRate = Math.round((Object.values(done).filter(Boolean).length / DAILY_TASKS.length) * 100);
+    const checkDate = () => {
+      const nowStr = new Date().toISOString().slice(0, 10);
+      if (nowStr !== todayStr) {
+        setDone({}); // 新的一天，清空打卡
+      }
+    };
+    document.addEventListener('visibilitychange', checkDate);
+    window.addEventListener('focus', checkDate);
+    return () => {
+      document.removeEventListener('visibilitychange', checkDate);
+      window.removeEventListener('focus', checkDate);
+    };
+  }, [todayStr]);
+
+  // 持久化月度数据，把今日完成率同步进去
+  useEffect(() => {
+    const todayRate = Math.round(
+      (Object.values(done).filter((v) => v && v.done).length / DAILY_TASKS.length) * 100
+    );
     const newData = { ...monthData, [todayDate]: todayRate };
     setMonthData(newData);
     try {
@@ -112,10 +122,27 @@ export default function DailyPlanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
 
-  const toggle = (id) => setDone((prev) => ({ ...prev, [id]: !prev[id] }));
+  // 打卡/取消打卡 - 同时记录当时时间
+  const toggle = (id) => {
+    setDone((prev) => {
+      const existing = prev[id];
+      if (existing && existing.done) {
+        // 取消打卡
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      // 打卡：记录当前时间
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      return { ...prev, [id]: { done: true, time: `${hh}:${mm}:${ss}` } };
+    });
+  };
 
   // 今日统计
-  const doneCount = Object.values(done).filter(Boolean).length;
+  const doneCount = Object.values(done).filter((v) => v && v.done).length;
   const totalCount = DAILY_TASKS.length;
   const todayRate = Math.round((doneCount / totalCount) * 100);
 
@@ -124,23 +151,26 @@ export default function DailyPlanPage() {
     const stats = {};
     Object.keys(CATEGORIES).forEach((c) => {
       const tasks = DAILY_TASKS.filter((t) => t.cat === c);
-      const d = tasks.filter((t) => done[t.id]).length;
+      const d = tasks.filter((t) => done[t.id] && done[t.id].done).length;
       stats[c] = { total: tasks.length, done: d, rate: tasks.length ? Math.round((d / tasks.length) * 100) : 0 };
     });
     return stats;
   }, [done]);
 
   // 月度统计
-  const monthValues = Object.values(monthData).filter((v) => v !== null && v !== undefined);
+  const monthValues = Object.entries(monthData)
+    .filter(([day, v]) => v !== null && v !== undefined && Number(day) <= todayDate)
+    .map(([day, v]) => v);
   const checkedDays = monthValues.filter((v) => v > 0).length;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthAvgRate = monthValues.length ? Math.round(monthValues.reduce((a, b) => a + b, 0) / monthValues.length) : 0;
 
-  // 连续打卡天数
+  // 连续打卡天数（从今天往前数）
   const streak = useMemo(() => {
     let s = 0;
     for (let d = todayDate; d >= 1; d--) {
-      if (monthData[d] !== null && monthData[d] !== undefined && monthData[d] > 0) s++;
+      const v = monthData[d];
+      if (v !== null && v !== undefined && v > 0) s++;
       else if (d < todayDate) break;
     }
     return s;
@@ -156,7 +186,6 @@ export default function DailyPlanPage() {
     return grouped;
   }, []);
 
-  // 月度日历方块颜色
   const getDayColor = (rate) => {
     if (rate === null || rate === undefined) return 'empty';
     if (rate === 0) return 'zero';
@@ -167,7 +196,7 @@ export default function DailyPlanPage() {
 
   // 当前时间对应的下一个待办任务
   const nowStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
-  const nextTask = DAILY_TASKS.find((t) => t.time >= nowStr && !done[t.id]);
+  const nextTask = DAILY_TASKS.find((t) => t.time >= nowStr && !(done[t.id] && done[t.id].done));
 
   return (
     <div>
@@ -190,7 +219,7 @@ export default function DailyPlanPage() {
         <div className="card warm">
           <div className="icon">🗓️</div>
           <div className="label">本月打卡</div>
-          <div className="value">{checkedDays}<span className="unit">/ {daysInMonth} 天</span></div>
+          <div className="value">{checkedDays}<span className="unit">/ {todayDate} 天</span></div>
         </div>
         <div className="card">
           <div className="icon">📈</div>
@@ -204,17 +233,14 @@ export default function DailyPlanPage() {
         </div>
       </div>
 
-      {/* Tab 切换 */}
       <div className="tabs">
         <button className={`tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>⏰ 今日时间轴</button>
         <button className={`tab ${activeTab === 'month' ? 'active' : ''}`} onClick={() => setActiveTab('month')}>🗓️ 月度完成情况</button>
         <button className={`tab ${activeTab === 'category' ? 'active' : ''}`} onClick={() => setActiveTab('category')}>📊 分类统计</button>
       </div>
 
-      {/* 今日时间轴 */}
       {activeTab === 'timeline' && (
         <>
-          {/* 整体进度条 */}
           <div className="panel">
             <h2>📊 今日整体进度</h2>
             <div className="muted" style={{ marginBottom: 10 }}>
@@ -233,14 +259,15 @@ export default function DailyPlanPage() {
             )}
           </div>
 
-          {/* 按时段分组的时间轴 */}
           {PERIODS.map((p) => (
             <div key={p.key} className="panel">
               <h2>{p.label} <span className="period-range">{p.range}</span></h2>
               <div className="daily-timeline">
                 {(tasksByPeriod[p.key] || []).map((task) => {
                   const cat = CATEGORIES[task.cat];
-                  const isDone = !!done[task.id];
+                  const record = done[task.id];
+                  const isDone = !!(record && record.done);
+                  const checkTime = record && record.time;
                   return (
                     <div key={task.id} className={`daily-task ${cat.cls} ${isDone ? 'done' : ''}`}>
                       <div className="task-time">{task.time}</div>
@@ -255,6 +282,9 @@ export default function DailyPlanPage() {
                       <div className="task-main">
                         <div className="task-title">{task.title}</div>
                         {task.note && <div className="task-note">{task.note}</div>}
+                        {isDone && checkTime && (
+                          <div className="task-checktime">✓ 打卡于 {checkTime}</div>
+                        )}
                       </div>
                       <div className={`cat-tag ${cat.cls}`}>{cat.icon} {cat.label}</div>
                     </div>
@@ -266,13 +296,12 @@ export default function DailyPlanPage() {
 
           <div className="panel warm">
             <p style={{ margin: 0, color: 'var(--accent-warm-strong)', fontSize: 13 }}>
-              💡 提示：本页整合了「蛋堡早教、蛋堡辅食、德语学习、减肥计划」四大计划的每日核心任务，按时间轴排列。点击左侧圆圈即可打卡，进度实时同步到月度日历。
+              💡 提示：本页整合了「蛋堡早教、蛋堡辅食、德语学习、减肥计划」四大计划的每日核心任务，按时间轴排列。点击圆圈打卡后会自动记录打卡时间，方便你回顾一天的节奏。
             </p>
           </div>
         </>
       )}
 
-      {/* 月度完成情况 */}
       {activeTab === 'month' && (
         <>
           <div className="panel">
@@ -364,7 +393,6 @@ export default function DailyPlanPage() {
         </>
       )}
 
-      {/* 分类统计 */}
       {activeTab === 'category' && (
         <>
           <div className="panel">
@@ -397,20 +425,30 @@ export default function DailyPlanPage() {
                 <div key={key} className="cat-section">
                   <h3>{cat.icon} {cat.label} <span className="muted">({catStats[key].done}/{tasks.length})</span></h3>
                   <ul className="tasks">
-                    {tasks.map((t) => (
-                      <li key={t.id} className={`task ${done[t.id] ? 'done' : ''}`}>
-                        <div className="task-time-inline">{t.time}</div>
-                        <div
-                          className={`check ${done[t.id] ? 'done' : ''}`}
-                          onClick={() => toggle(t.id)}
-                          role="checkbox"
-                          aria-checked={!!done[t.id]}
-                        >
-                          {done[t.id] ? '✓' : ''}
-                        </div>
-                        <span className="title">{t.title}</span>
-                      </li>
-                    ))}
+                    {tasks.map((t) => {
+                      const record = done[t.id];
+                      const isDone = !!(record && record.done);
+                      const checkTime = record && record.time;
+                      return (
+                        <li key={t.id} className={`task ${isDone ? 'done' : ''}`}>
+                          <div className="task-time-inline">{t.time}</div>
+                          <div
+                            className={`check ${isDone ? 'done' : ''}`}
+                            onClick={() => toggle(t.id)}
+                            role="checkbox"
+                            aria-checked={isDone}
+                          >
+                            {isDone ? '✓' : ''}
+                          </div>
+                          <span className="title">
+                            {t.title}
+                            {isDone && checkTime && (
+                              <span className="task-checktime-inline"> · {checkTime}</span>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               );

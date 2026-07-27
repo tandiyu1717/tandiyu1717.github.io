@@ -1,270 +1,320 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getBabyAge, dailySeed } from '../utils.js';
 
 const BABY_INFO = {
   name: '蛋堡',
   birthday: '2025-10-21',
-  age: '8 个月',
-  weight: '10.3 kg',
-  height: '71 cm',
-  note: '偏重，大动作略落后',
+  defaultWeight: '10.3',
+  defaultHeight: '71',
 };
 
-const TODAY_SUPPLEMENTS = [
-  { time: '06:00', name: '维生素 D3', note: '今天轮到吃 D3', type: 'd3' },
-  { time: '10:00', name: '维生素', note: '上午补充', type: 'vitamin' },
-  { time: '18:00', name: '碳酸钙', note: '晚上补充', type: 'calcium' },
-];
-
-const MILESTONES = [
-  { id: 1, age: '2 个月', content: '能抬头 45°', done: true },
-  { id: 2, age: '3 个月', content: '会翻身、笑出声', done: true },
-  { id: 3, age: '6 个月', content: '能独坐、添加辅食', done: true },
-  { id: 4, age: '8 个月', content: '手膝爬行', done: false, urgent: true },
-  { id: 5, age: '8 个月', content: '发出 mama/baba 音节', done: false, urgent: true },
-  { id: 6, age: '9 个月', content: '扶物站立', done: false },
-  { id: 7, age: '10 个月', content: '挥手再见', done: false },
-  { id: 8, age: '12 个月', content: '独走几步', done: false },
-];
-
-const GROSS_MOTOR = [
+// 大动作训练轮换库（每日轮换一个，含动作要领+训练时长）
+const GROSS_MOTOR_LIBRARY = [
   {
-    name: '🐸 趴卧练习',
-    desc: '每天 3-4 次，每次 10-15 分钟',
-    target: '锻炼颈背力量，为爬行打基础',
-  },
-  {
-    name: '🤸 手膝爬训练',
-    desc: '在宝宝前方放玩具吸引，推脚辅助',
-    target: '重点训练！从匍匐爬到手膝爬',
+    name: '🐸 手膝爬行训练',
+    duration: '建议训练 15 分钟',
+    points: [
+      '让宝宝趴在爬行垫上，用玩具在正前方 30cm 处吸引',
+      '用手掌轻托宝宝腹部，帮助其保持手膝支撑姿势',
+      '在宝宝后方轻推一侧脚掌，引导交替向前爬行',
+      '如果宝宝趴下，可短暂托起腹部 3-5 秒再放下',
+    ],
+    tip: '重点训练！蛋堡目前还不会手膝爬，每天坚持必有进步',
+    video: 'https://www.bilibili.com/video/BV1HJ411L7uD/',
   },
   {
     name: '🪜 扶站练习',
-    desc: '扶着沙发或围栏站立',
-    target: '锻炼腿部力量',
+    duration: '建议训练 10 分钟',
+    points: [
+      '让宝宝扶着沙发或矮桌站立，双脚分开与肩同宽',
+      '在宝宝前方放玩具，鼓励其单手扶物去抓',
+      '观察宝宝是否能稳定站立 30 秒以上',
+      '若宝宝腿软，可暂停休息 1 分钟再继续',
+    ],
+    tip: '锻炼腿部力量，为独站和行走做准备',
+    video: 'https://www.bilibili.com/video/BV1rV411b7TN/',
   },
   {
     name: '🔄 翻滚游戏',
-    desc: '用玩具引导左右翻滚',
-    target: '增强躯干灵活性',
+    duration: '建议训练 10 分钟',
+    points: [
+      '让宝宝仰卧，在侧面用玩具引导其翻身',
+      '左右两侧交替练习，每侧 5 分钟',
+      '翻身时轻轻协助宝宝转动髋部',
+      '完成后给宝宝鼓励和拥抱',
+    ],
+    tip: '增强躯干灵活性和核心力量',
+    video: 'https://www.bilibili.com/video/BV1L4411c7om/',
+  },
+  {
+    name: '🤸 趴卧抬头',
+    duration: '建议训练 10 分钟',
+    points: [
+      '让宝宝趴在垫子上，双手撑在胸前',
+      '在前方摇铃或叫名字，引导宝宝抬头',
+      '保持抬头姿势 10-20 秒，逐步延长',
+      '每天 2-3 次，每次 5-10 分钟',
+    ],
+    tip: '巩固颈背力量，是爬行的基础',
+    video: 'https://www.bilibili.com/video/BV1S7411B7K6/',
+  },
+  {
+    name: '🎯 坐位平衡',
+    duration: '建议训练 10 分钟',
+    points: [
+      '让宝宝独坐，家长在侧保护',
+      '在前方左右两侧放玩具，引导转身抓取',
+      '观察宝宝是否能稳定坐 1 分钟不倒',
+      '若倒下，重新扶起继续练习',
+    ],
+    tip: '锻炼核心稳定性和平衡感',
+    video: 'https://www.bilibili.com/video/BV14J411s7Yg/',
+  },
+  {
+    name: '🪀 拉坐练习',
+    duration: '建议训练 5 分钟',
+    points: [
+      '让宝宝仰卧，家长握住宝宝双手',
+      '缓慢拉起宝宝至坐位，再缓慢放下',
+      '重复 5-8 次，注意动作要轻柔',
+      '观察宝宝颈部是否用力配合',
+    ],
+    tip: '锻炼腹部力量和颈部控制',
+    video: 'https://www.bilibili.com/video/BV17741117ZP/',
+  },
+  {
+    name: '🦵 蹬腿练习',
+    duration: '建议训练 8 分钟',
+    points: [
+      '让宝宝仰卧，家长把手指放在宝宝脚底',
+      '鼓励宝宝蹬腿，给予反向轻阻力',
+      '左右脚交替进行，每侧 4 分钟',
+      '配合儿歌节奏，增加趣味性',
+    ],
+    tip: '锻炼腿部力量，为站立和行走做准备',
+    video: 'https://www.bilibili.com/video/BV1cV411b7gV/',
   },
 ];
 
-const LANGUAGE_TRAINING = [
+// 语言训练 - SSS 英文儿歌 + 中文童谣轮换库
+const LANGUAGE_LIBRARY = [
   {
-    name: '👶 模仿发音',
-    desc: '对着宝宝发「mama」「baba」音',
-    tip: '夸张口型，配合表情',
+    type: '🎵 SSS 英文儿歌',
+    title: 'Twinkle Twinkle Little Star',
+    en: 'Twinkle, twinkle, little star, How I wonder what you are!',
+    cn: '一闪一闪小星星，我多想知道你是什么',
+    link: 'https://www.bilibili.com/video/BV1uE411s7gE/',
+    tip: '唱的时候配合手指闪烁的动作，吸引宝宝注意力',
   },
   {
-    name: '📚 绘本阅读',
-    desc: '每天 2 次，每次 5-10 分钟',
-    tip: '指着图片说名称，语速慢',
+    type: '🐰 中文童谣',
+    title: '小白兔白又白',
+    en: '小白兔，白又白，两只耳朵竖起来，爱吃萝卜和青菜，蹦蹦跳跳真可爱',
+    cn: '配合动作：竖耳朵、啃萝卜、蹦跳',
+    link: 'https://www.bilibili.com/video/BV1nx411P7tK/',
+    tip: '边唱边做动作，宝宝会跟着模仿',
   },
   {
-    name: '🎵 儿歌律动',
-    desc: '播放儿歌，做简单动作',
-    tip: '促进语言理解和节奏感',
+    type: '🎵 SSS 英文儿歌',
+    title: 'Old MacDonald Had a Farm',
+    en: 'Old MacDonald had a farm, E-I-E-I-O!',
+    cn: '老麦克唐纳有个农场，咿呀咿呀呦',
+    link: 'https://www.bilibili.com/video/BV1cx411b7gS/',
+    tip: '模仿各种动物叫声，宝宝会觉得很有趣',
   },
   {
-    name: '🗣️ 描述日常',
-    desc: '做什么说什么，丰富词汇',
-    tip: '比如「妈妈在给宝宝换尿布」',
+    type: '🌟 中文童谣',
+    title: '一闪一闪亮晶晶',
+    en: '一闪一闪亮晶晶，满天都是小星星',
+    cn: '配合手指张开握合的动作',
+    link: 'https://www.bilibili.com/video/BV1uE411s7gE/',
+    tip: '睡前唱，有助于建立睡眠仪式',
+  },
+  {
+    type: '🎵 SSS 英文儿歌',
+    title: 'The Wheels on the Bus',
+    en: 'The wheels on the bus go round and round!',
+    cn: '公交车上的轮子转呀转',
+    link: 'https://www.bilibili.com/video/BV1Wx411F7wS/',
+    tip: '配合手臂转圈动作，宝宝会跟着模仿',
+  },
+  {
+    type: '🐛 中文童谣',
+    title: '毛毛虫',
+    en: '毛毛虫，爬呀爬，爬到枝头开了花，变成蝴蝶飞走啦',
+    cn: '配合手指爬行、变花、飞走的动作',
+    link: '',
+    tip: '动作丰富，宝宝喜欢模仿',
+  },
+  {
+    type: '🎵 SSS 英文儿歌',
+    title: 'Head Shoulders Knees & Toes',
+    en: 'Head, shoulders, knees and toes, knees and toes!',
+    cn: '头、肩膀、膝盖和脚趾',
+    link: 'https://www.bilibili.com/video/BV1cx411b7gS/',
+    tip: '边唱边指身体部位，帮助宝宝认识身体',
   },
 ];
 
 const DAILY_ROUTINE = [
-  { time: '06:00', act: '起床 + D3', note: '交替吃 AD/D3' },
-  { time: '08:00', act: '奶 + 亲子互动', note: '趴卧练习 10 分钟' },
-  { time: '10:00', act: '小睡 1 小时', note: '醒后补维生素' },
+  { time: '06:00', act: '起床 + 亲子互动', note: '早晨亲子时光' },
+  { time: '08:00', act: '奶 + 趴卧练习', note: '趴卧 10 分钟' },
+  { time: '10:00', act: '小睡 1 小时', note: '保证充足睡眠' },
   { time: '11:30', act: '辅食 + 自由玩耍', note: '软烂粥为主' },
   { time: '14:00', act: '午睡 1.5-2 小时', note: '保证充足睡眠' },
-  { time: '16:00', act: '户外活动 / 早教', note: '手膝爬训练' },
-  { time: '18:00', act: '洗澡 + 碳酸钙', note: '晚上补钙' },
-  { time: '20:30', act: '入睡', note: '睡前读绘本' },
-];
-
-const INIT_TASKS = [
-  { id: 1, title: '完成 30 分钟手膝爬训练', done: true },
-  { id: 2, title: '读 2 本绘本（语言训练）', done: false },
-  { id: 3, title: '户外散步 30 分钟', done: false },
-  { id: 4, title: '记录今日身高体重', done: false },
+  { time: '16:00', act: '户外活动 + 大动作训练', note: '今日推荐项目' },
+  { time: '18:00', act: '洗澡 + 亲子阅读', note: '睡前读绘本' },
+  { time: '20:30', act: '入睡 + 童谣', note: '今日推荐童谣' },
 ];
 
 export default function EggBaoPage() {
-  const [tasks, setTasks] = useState(INIT_TASKS);
-  const [input, setInput] = useState('');
-  const [milestones, setMilestones] = useState(MILESTONES);
+  const age = getBabyAge();
 
-  const doneCount = tasks.filter((t) => t.done).length;
-  const progress = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
-  const msDone = milestones.filter((m) => m.done).length;
+  // 身高体重输入
+  const [bodyData, setBodyData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('baby_body');
+      return saved ? JSON.parse(saved) : { weight: '', height: '' };
+    } catch {
+      return { weight: '', height: '' };
+    }
+  });
+  const [inputWeight, setInputWeight] = useState('');
+  const [inputHeight, setInputHeight] = useState('');
 
-  const add = () => {
-    const title = input.trim();
-    if (!title) return;
-    setTasks((prev) => [...prev, { id: Date.now(), title, done: false }]);
-    setInput('');
+  useEffect(() => {
+    try { localStorage.setItem('baby_body', JSON.stringify(bodyData)); } catch {}
+  }, [bodyData]);
+
+  const saveBody = () => {
+    setBodyData({
+      weight: inputWeight || bodyData.weight,
+      height: inputHeight || bodyData.height,
+    });
+    setInputWeight('');
+    setInputHeight('');
   };
-  const toggle = (id) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const remove = (id) => setTasks((prev) => prev.filter((t) => t.id !== id));
-  const toggleMs = (id) => setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, done: !m.done } : m)));
+
+  // 每日轮换大动作训练和语言童谣
+  const todayMotor = GROSS_MOTOR_LIBRARY[dailySeed(GROSS_MOTOR_LIBRARY.length)];
+  const todaySong = LANGUAGE_LIBRARY[dailySeed(LANGUAGE_LIBRARY.length, 3)];
+
+  // 显示数据（如未填写用默认值）
+  const displayWeight = bodyData.weight || BABY_INFO.defaultWeight;
+  const displayHeight = bodyData.height || BABY_INFO.defaultHeight;
 
   return (
     <div>
       <div className="page-header">
-        <h1>🍼 蛋堡的早教计划</h1>
+        <h1>🍼 蛋堡的早教训练</h1>
         <p>陪伴蛋堡健康快乐成长 🌱</p>
         <div className="meta">
           <span className="tag">👶 {BABY_INFO.name}</span>
-          <span className="tag warm">📅 {BABY_INFO.age}</span>
-          <span className="tag">⚖️ {BABY_INFO.weight} / {BABY_INFO.height}</span>
-          <span className="tag danger">⚠️ {BABY_INFO.note}</span>
+          <span className="tag warm">📅 {age.label}</span>
+          <span className="tag">⚖️ {displayWeight} kg / {displayHeight} cm</span>
         </div>
       </div>
 
       <div className="cards">
         <div className="card green">
-          <div className="icon">🎯</div>
-          <div className="label">发育里程碑</div>
-          <div className="value">{msDone} / {milestones.length}</div>
+          <div className="icon">📅</div>
+          <div className="label">月龄</div>
+          <div className="value">{age.months}<span className="unit">月</span></div>
         </div>
         <div className="card warm">
-          <div className="icon">🧗</div>
-          <div className="label">大动作训练</div>
-          <div className="value">{GROSS_MOTOR.length}<span className="unit">项</span></div>
+          <div className="icon">⚖️</div>
+          <div className="label">体重</div>
+          <div className="value">{displayWeight}<span className="unit">kg</span></div>
         </div>
         <div className="card">
-          <div className="icon">🗣️</div>
-          <div className="label">语言训练</div>
-          <div className="value">{LANGUAGE_TRAINING.length}<span className="unit">项</span></div>
+          <div className="icon">📏</div>
+          <div className="label">身高</div>
+          <div className="value">{displayHeight}<span className="unit">cm</span></div>
         </div>
         <div className="card green">
-          <div className="icon">✅</div>
-          <div className="label">今日任务</div>
-          <div className="value">{doneCount} / {tasks.length}</div>
+          <div className="icon">🎯</div>
+          <div className="label">今日训练</div>
+          <div className="value">{todayMotor.name.split(' ')[0]}<span className="unit">轮换</span></div>
         </div>
       </div>
 
+      {/* 身高体重录入 */}
       <div className="panel warm">
-        <h2>💊 今日补充剂</h2>
-        <div className="timeline">
-          {TODAY_SUPPLEMENTS.map((s) => (
-            <div key={s.time} className={`timeline-item ${s.type === 'd3' ? 'warm' : ''}`}>
-              <div className="time">{s.time}</div>
-              <div className="desc">
-                <strong>{s.name}</strong>
-                {s.note && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· {s.note}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid-2">
-        <div className="panel">
-          <h2>📈 发育里程碑</h2>
-          <ul className="tasks">
-            {milestones.map((m) => (
-              <li key={m.id} className={`task ${m.done ? 'done' : ''}`}>
-                <div
-                  className={`check ${m.done ? 'done' : ''}`}
-                  onClick={() => toggleMs(m.id)}
-                  role="checkbox"
-                  aria-checked={m.done}
-                >
-                  {m.done ? '✓' : ''}
-                </div>
-                <span className="title">
-                  <strong>{m.age}</strong> · {m.content}
-                  {m.urgent && <span className="badge danger" style={{ marginLeft: 8 }}>重点</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="panel warm">
-          <h2>⏰ 今日作息</h2>
-          <div className="timeline">
-            {DAILY_ROUTINE.map((r) => (
-              <div key={r.time} className="timeline-item">
-                <div className="time">{r.time}</div>
-                <div className="desc">{r.act}</div>
-                {r.note && <div className="note">{r.note}</div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <h2>🧗 大动作训练（重点）</h2>
-        <div className="item-list">
-          {GROSS_MOTOR.map((g) => (
-            <div key={g.name} className="item-row">
-              <span className="word" style={{ minWidth: '140px' }}>{g.name}</span>
-              <span className="meaning">{g.desc}</span>
-              <span className="tag">{g.target}</span>
-            </div>
-          ))}
-        </div>
-        <p style={{ marginTop: 12, color: 'var(--accent-warm-strong)', fontSize: 13 }}>
-          💡 提示：蛋堡目前大动作稍落后，建议每天增加 10-15 分钟爬行训练，家长可以在前方用玩具吸引，同时轻轻推宝宝的脚给予辅助。
+        <h2>📝 身高体重记录</h2>
+        <p className="muted" style={{ marginTop: 0, marginBottom: 10 }}>
+          录入新数据后，上方卡片会自动更新；如不填写则显示上次数据
         </p>
-      </div>
-
-      <div className="panel warm">
-        <h2>🗣️ 语言训练</h2>
-        <div className="item-list">
-          {LANGUAGE_TRAINING.map((l) => (
-            <div key={l.name} className="item-row">
-              <span className="word" style={{ minWidth: '130px' }}>{l.name}</span>
-              <span className="meaning">{l.desc}</span>
-              <span className="tag warm">💡 {l.tip}</span>
-            </div>
-          ))}
-        </div>
-        <p style={{ marginTop: 12, color: 'var(--accent-warm-strong)', fontSize: 13 }}>
-          💡 提示：目前蛋堡还不会说话，重点在于语言输入和模仿。每天固定时间读绘本，平时多和宝宝对话，描述正在做的事情。
-        </p>
-      </div>
-
-      <div className="panel">
-        <h2>📝 今日带娃任务</h2>
-        <div className="row">
+        <div className="body-input-row">
           <input
             type="text"
-            placeholder="添加一个带娃小任务（回车提交）"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
+            placeholder={`体重 kg（当前 ${displayWeight}）`}
+            value={inputWeight}
+            onChange={(e) => setInputWeight(e.target.value)}
           />
-          <button className="btn warm" onClick={add}>添加</button>
+          <input
+            type="text"
+            placeholder={`身高 cm（当前 ${displayHeight}）`}
+            value={inputHeight}
+            onChange={(e) => setInputHeight(e.target.value)}
+          />
+          <button className="btn warm" onClick={saveBody}>保存</button>
         </div>
-        <div className="muted" style={{ marginBottom: 10 }}>
-          进度 {progress}%
-          <div className="progress warm"><div className="bar" style={{ width: `${progress}%` }} /></div>
-        </div>
-        {tasks.length === 0 ? (
-          <div className="empty">还没有任务～</div>
-        ) : (
-          <ul className="tasks">
-            {tasks.map((t) => (
-              <li key={t.id} className={`task ${t.done ? 'done' : ''}`}>
-                <div
-                  className={`check ${t.done ? 'done' : ''}`}
-                  onClick={() => toggle(t.id)}
-                  role="checkbox"
-                  aria-checked={t.done}
-                >
-                  {t.done ? '✓' : ''}
-                </div>
-                <span className="title">{t.title}</span>
-                <button className="del" onClick={() => remove(t.id)} title="删除">✕</button>
-              </li>
+      </div>
+
+      {/* 今日大动作训练 */}
+      <div className="panel">
+        <h2>🧗 今日大动作训练</h2>
+        <div className="training-card">
+          <div className="train-head">
+            <span className="train-name">{todayMotor.name}</span>
+            <span className="train-duration">⏱️ {todayMotor.duration}</span>
+          </div>
+          <div className="train-section-title">动作要领</div>
+          <ol className="train-points">
+            {todayMotor.points.map((p, i) => (
+              <li key={i}>{p}</li>
             ))}
-          </ul>
-        )}
+          </ol>
+          <div className="train-tip">💡 {todayMotor.tip}</div>
+          {todayMotor.video && (
+            <a className="song-link train-video-link" href={todayMotor.video} target="_blank" rel="noopener noreferrer">
+              ▶️ 观看训练演示视频
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* 今日语言训练 - 童谣 */}
+      <div className="panel warm">
+        <h2>🎵 今日语言训练 · 童谣</h2>
+        <div className="song-card">
+          <div className="song-type">{todaySong.type}</div>
+          <div className="song-title">{todaySong.title}</div>
+          <div className="song-lyrics">
+            <div className="lyric-en">{todaySong.en}</div>
+            {todaySong.cn && <div className="lyric-cn">📖 {todaySong.cn}</div>}
+          </div>
+          {todaySong.link && (
+            <a className="song-link" href={todaySong.link} target="_blank" rel="noopener noreferrer">
+              ▶️ 点击观看视频
+            </a>
+          )}
+          <div className="song-tip">💡 {todaySong.tip}</div>
+        </div>
+      </div>
+
+      {/* 今日作息 */}
+      <div className="panel">
+        <h2>⏰ 今日作息</h2>
+        <div className="timeline">
+          {DAILY_ROUTINE.map((r) => (
+            <div key={r.time} className="timeline-item">
+              <div className="time">{r.time}</div>
+              <div className="desc">{r.act}</div>
+              {r.note && <div className="note">{r.note}</div>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

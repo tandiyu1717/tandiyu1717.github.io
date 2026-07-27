@@ -69,13 +69,6 @@ const SNACKS = [
   { name: '🍌 香蕉', time: '运动前后' },
 ];
 
-const INIT_TASKS = [
-  { id: 1, title: '喝够 2L 水', done: true },
-  { id: 2, title: '晚饭后散步 40 分钟', done: false },
-  { id: 3, title: '不吃零食 / 不喝奶茶', done: false },
-  { id: 4, title: '11 点前睡觉', done: false },
-];
-
 // 蚂蚁阿福体脂秤 - 18 项核心数据录入
 const BODY_FIELDS = [
   { key: 'weight', label: '体重', unit: 'kg', icon: '⚖️', placeholder: '63.8', normal: '参考 50-65' },
@@ -127,8 +120,6 @@ export default function WeightPage() {
   const [log, setLog] = useState(INIT_LOG);
   const [newDate, setNewDate] = useState('');
   const [newWeight, setNewWeight] = useState('');
-  const [tasks, setTasks] = useState(INIT_TASKS);
-  const [taskInput, setTaskInput] = useState('');
 
   // 阿福体脂秤相关状态
   const [deviceConnected, setDeviceConnected] = useState(false);
@@ -167,9 +158,6 @@ export default function WeightPage() {
   const totalNeed = (start - GOAL_WEIGHT).toFixed(1);
   const progressPercent = totalNeed > 0 ? Math.min(100, Math.round((lost / totalNeed) * 100)) : 0;
 
-  const doneCount = tasks.filter((t) => t.done).length;
-  const taskProgress = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
-
   // 最新体脂数据
   const latestBody = bodyLog[bodyLog.length - 1];
 
@@ -181,15 +169,6 @@ export default function WeightPage() {
     setNewDate('');
     setNewWeight('');
   };
-
-  const addTask = () => {
-    const title = taskInput.trim();
-    if (!title) return;
-    setTasks((prev) => [...prev, { id: Date.now(), title, done: false }]);
-    setTaskInput('');
-  };
-  const toggle = (id) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const remove = (id) => setTasks((prev) => prev.filter((t) => t.id !== id));
 
   const openVideo = (link) => {
     window.open(link, '_blank');
@@ -559,42 +538,11 @@ export default function WeightPage() {
         </p>
       </div>
 
-      <div className="panel">
-        <h2>📝 今日减肥任务</h2>
-        <div className="row">
-          <input
-            type="text"
-            placeholder="添加一个减肥小目标（回车提交）"
-            value={taskInput}
-            onChange={(e) => setTaskInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addTask()}
-          />
-          <button className="btn warm" onClick={addTask}>添加</button>
-        </div>
-        <div className="muted" style={{ marginBottom: 10 }}>
-          进度 {taskProgress}%
-          <div className="progress warm"><div className="bar" style={{ width: `${taskProgress}%` }} /></div>
-        </div>
-        {tasks.length === 0 ? (
-          <div className="empty">还没有任务～</div>
-        ) : (
-          <ul className="tasks">
-            {tasks.map((t) => (
-              <li key={t.id} className={`task ${t.done ? 'done' : ''}`}>
-                <div
-                  className={`check ${t.done ? 'done' : ''}`}
-                  onClick={() => toggle(t.id)}
-                  role="checkbox"
-                  aria-checked={t.done}
-                >
-                  {t.done ? '✓' : ''}
-                </div>
-                <span className="title">{t.title}</span>
-                <button className="del" onClick={() => remove(t.id)} title="删除">✕</button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="panel warm">
+        <h2>📌 减肥任务已整合</h2>
+        <p style={{ margin: 0, color: 'var(--text-soft)', fontSize: 14 }}>
+          今日减肥任务已整合到「<strong style={{ color: 'var(--primary-strong)' }}>每日计划</strong>」中，请前往该板块统一打卡 ✨
+        </p>
       </div>
     </div>
   );

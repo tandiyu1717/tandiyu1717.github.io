@@ -4,21 +4,26 @@ import EggBaoPage from './pages/EggBaoPage.jsx';
 import WeightPage from './pages/WeightPage.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import DailyPlanPage from './pages/DailyPlanPage.jsx';
+import { getTodayQuote } from './utils.js';
 
 const NAV_ITEMS = [
-  { id: 'egg', label: '蛋堡的早教计划', icon: '🍼' },
-  { id: 'food', label: '蛋堡辅食计划', icon: '🥣' },
+  { id: 'daily', label: '每日计划', icon: '📅' },
+  { id: 'egg', label: '蛋堡早教训练', icon: '🍼' },
+  { id: 'food', label: '蛋堡辅食', icon: '🥣' },
   { id: 'german', label: '德语学习', icon: '📖' },
   { id: 'weight', label: '减肥计划', icon: '💪' },
-  { id: 'daily', label: '每日计划', icon: '📅' },
 ];
 
 function Sidebar({ active, onChange }) {
+  const quote = useMemo(() => getTodayQuote(), []);
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="logo"><span className="leaf">🌿</span>小生活工作台</div>
-        <div className="sub">每日进步一点点</div>
+        <div className="logo">
+          <img className="mascot" src="/mascot.jpg" alt="谭迪予的工作台吉祥物" />
+          <span className="brand-name">谭迪予的工作台</span>
+        </div>
+        <div className="soup-quote">{quote}</div>
       </div>
       <nav>
         <ul className="nav">
@@ -29,15 +34,13 @@ function Sidebar({ active, onChange }) {
                 onClick={() => onChange(item.id)}
               >
                 <span className="icon">{item.icon}</span>
-                {item.label}
+                <span className="label">{item.label}</span>
               </button>
             </li>
           ))}
         </ul>
       </nav>
-      <div className="footer">
-        v1.0 · 豆绿暖米
-      </div>
+      <div className="footer">v1.2 · 谭迪予</div>
     </aside>
   );
 }
@@ -45,8 +48,8 @@ function Sidebar({ active, onChange }) {
 function getInitialPage() {
   const params = new URLSearchParams(window.location.search);
   const p = params.get('p');
-  const valid = ['egg', 'food', 'german', 'weight', 'daily'];
-  return valid.includes(p) ? p : 'egg';
+  const valid = ['daily', 'egg', 'food', 'german', 'weight'];
+  return valid.includes(p) ? p : 'daily';
 }
 
 export default function App() {
@@ -54,11 +57,11 @@ export default function App() {
 
   const page = useMemo(() => {
     switch (active) {
+      case 'daily': return <DailyPlanPage />;
       case 'egg': return <EggBaoPage />;
       case 'food': return <FoodPage />;
       case 'german': return <GermanPage />;
       case 'weight': return <WeightPage />;
-      case 'daily': return <DailyPlanPage />;
       default: return null;
     }
   }, [active]);
