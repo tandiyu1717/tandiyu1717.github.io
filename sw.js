@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tandiyu-v2';
+const CACHE_NAME = 'tandiyu-v4';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -11,8 +11,12 @@ const PRECACHE_URLS = [
   '/mascot.png',
 ];
 
-// 这类资源必须始终走网络（避免 manifest/图标被旧缓存卡住）
+// 这些资源必须始终走网络（避免被旧缓存卡住）
+// HTML、SW 脚本必须 network-first，否则刷新永远拿到旧 HTML → 引用旧 hash 的 JS
 const NETWORK_FIRST = [
+  '/',
+  '/index.html',
+  '/sw.js',
   '/manifest.json',
   '/icons/icon.svg',
   '/icons/icon-maskable.svg',
@@ -55,8 +59,8 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
-  // manifest 和图标：network-first（保证能更新）
-  if (NETWORK_FIRST.includes(url.pathname)) {
+  // HTML / SW / 图标：network-first（保证能更新，避免被旧缓存卡住）
+  if (NETWORK_FIRST.includes(url.pathname) || url.pathname === '/' || url.pathname.endsWith('.html')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -73,7 +77,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 其他资源：stale-while-revalidate
+  // 带 hash 的静态资源：stale-while-revalidate（hash 变了自然失效）
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request)
